@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" id="Layer_4" data-name="Layer 4" viewBox="0 0 800 1300" version="1.1" sodipodi:docname="Rogue.svg" width="800" height="1300" inkscape:version="0.92.2 (5c3e80d, 2017-08-06)">
+  <metadata id="metadata15">
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+        <dc:title>Artboard 1</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview pagecolor="#ffffff" bordercolor="#666666" borderopacity="1" objecttolerance="10" gridtolerance="10" guidetolerance="10" inkscape:pageopacity="0" inkscape:pageshadow="2" inkscape:window-width="1918" inkscape:window-height="2054" id="namedview13" showgrid="false" inkscape:zoom="0.472" inkscape:cx="1335.0907" inkscape:cy="1149.1659" inkscape:window-x="-10" inkscape:window-y="0" inkscape:window-maximized="0" inkscape:current-layer="Layer_4"/>
+  <defs id="defs4">
+    <style id="style2">.cls-1{fill:#1e1b1c;}.cls-2{fill:#fff;}</style>
+  </defs>
+  <title id="title6">Artboard 1</title>
+  <path class="cls-2" d="m 302.54491,262.62712 a 87,87 0 0 0 174,0 h 6 a 93,93 0 0 1 -186,0 z" id="path8" inkscape:connector-curvature="0" style="fill:#ffffff"/>
+  <path class="cls-1" d="m 296.54491,262.62712 a 93,93 0 0 0 186,0 h -6 a 87,87 0 0 1 -174,0 z m 337.67,133.84 a 236.56,236.56 0 0 1 -2.9,148.6 l -46.77,131.66 v 58.4 a 37.49,37.49 0 0 1 -34,37.33 l -39.72,111.85 a 233,233 0 0 1 -16.28,35.82 v 287.49998 a 45,45 0 1 1 -90,0 V 996.87712 a 10.08,10.08 0 0 1 0,-7.52 v -216.73 a 15,15 0 0 0 -30,0 v 434.99998 a 45,45 0 0 1 -90,0 V 480.12712 a 7.5,7.5 0 0 0 -15,0 v 255 a 37.5,37.5 0 0 1 -75,0 v -232.5 a 120,120 0 0 1 120,-120 h -22.68 c -39.55,0 -63.66,-43.5 -42.7,-77 l 95.66,-153.1 c 20.66,-33 68.79,-33 89.45,0 l 95.66,153.1 c 21,33.54 -3.15,77 -42.7,77 h -22.69 a 120,120 0 0 1 120,120 v 3.79 l 33.4,-94 c -0.86,-3.34 -1.8,-6.67 -2.83,-10 a 10.01012,10.01012 0 0 1 19.1,-6 z m -21.75,141.91 a 216.57,216.57 0 0 0 7.2,-118.87 l -35.12,98.86 v 98.6 z m -117.92,332 36.07,-101.53 a 37.51,37.51 0 0 1 -21.07,-33.71 v -5.59 l -15,42.23 z m 15,-152.78 v -237.47 a 7.5,7.5 0 0 0 -15,0 v 279.69 z" id="path10" inkscape:connector-curvature="0" style="fill: #E6F598; stroke: black; stroke-width: 10px;"/>
+</svg>
