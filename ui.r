@@ -13,64 +13,46 @@ library(pool)
 library(DT)
 
 # Define UI for application that draws a histogram
-shinyUI(
-  fixedPage(
-    # Application title
-    tags$head(tags$style(
-      HTML("#plotlyBarPlot {border: 1px solid #000000;}"),
-      HTML("#netPlot {border: 1px solid #000000;}"),
-      HTML("body {background-color: #AAA;}"),
-      HTML("hr {border-top: 10px solid #000000;}"),
-      HTML(".shiny-image-output {height: auto;}"),
-      HTML("img {margin: 0 auto;}")
-    )),
-    titlePanel(div("6 weeks on Kushona", align = "center")),
-    hr(),
-    
-    fixedRow(div(htmlOutput("character_count")),
-             fixedRow(
-               column(4,
-                      #uiOutput("players",height="auto")),
-                      img(src = "img/Person_combined_xform.svg", width = "300px")),
-               column(4,
-                      img(src = "img/Classes_combined_xform.svg", width =
-                            "300px")),
-               column(4,
-                      img(src = "img/gravestone.svg", width = "300px"))
-             )),
-    hr(),
-    
+shinyUI(fixedPage(
+  # Application title
+  includeCSS("www/css/six-weeks-style.css"),
+  tags$head(
+    tags$script(src = "js/six-weeks-js.js"),
+    tags$script(
+      'Shiny.addCustomMessageHandler("jsCode", function(message) { eval(message.value); });'
+    )
+  ),
+  titlePanel(div("Kushona", align = "center")),
+  hr(),
+  
+    div(htmlOutput("character_count")),
     fixedRow(
-      column(6, dataTableOutput(
-        'player_experience'
-      )),
-      column(6,
-             htmlOutput("session_count"),
-             plotlyOutput("plotlyBarPlot")
-             )),
-    hr(),
-    fixedRow(
-      column(3, img(
-        src = "img/scroll.svg",
-        width = "200px",
-        height = "auto"
+      column(
+        4,
+        img(src = "img/Person_combined_xform.svg", width = "300px"),
+        img(src = "img/Classes_combined_xform.svg", width =
+              "300px"),
+        img(src = "img/gravestone.svg", width = "300px")
       ),
-      htmlOutput("recount_word_count")
-      ),
-      column(9, dataTableOutput('list_of_adventures'))
+      column(
+        8,
+        tags$style(HTML(".tooltip {opacity: 1}")),
+        ndtv:::ndtvAnimationWidgetOutput("netPlot")
+      )
     ),
     hr(),
     
-    # Sidebar with a slider input for the number of bins
     fixedRow(
-      # Show a plot of the generated distribution
-      column(
-        12
-        ,
-        tags$style(HTML(".tooltip {opacity: 1}")) # stop boostrap css from messing up the tooltip in the widget
-        ,
-        ndtv:::ndtvAnimationWidgetOutput("netPlot")
-      )
+      htmlOutput("session_count"),
+      column(6,HTML('<div id = "plotly_spacer" style="height: 50px;"></div>'),
+             plotlyOutput("plotlyBarPlot", width = "auto")),
+      column(6, dataTableOutput('player_experience'))
+    ),
+    hr(),
+    fixedRow(
+      htmlOutput("recount_word_count"),
+      column(6, dataTableOutput('list_of_adventures')),
+      column(6, div(id = "recount_container", htmlOutput("recount_frame")))
     )
-  )
-)
+    
+))

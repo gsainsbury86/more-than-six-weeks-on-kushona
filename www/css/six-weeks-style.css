@@ -1,0 +1,104 @@
+.graph svg {
+  border: 2px solid #000000; }
+
+div .svg-container svg {
+  border: 2px solid #000000;
+  width: 100%;
+  height: auto; }
+
+body {
+  background-color: #AAA; }
+
+hr {
+  border-top: 10px solid #000000; }
+
+.shiny-image-output {
+  height: auto; }
+
+img {
+  margin: 0 auto; }
+
+#character_count, #recount_word_count, #session_count {
+  text-align: center;
+  font-size: xx-large; }
+
+span.fill {
+  display: inline-block;
+  width: 100%;
+  height: 1em; }
+
+#num_players {
+  color: #D53E4F; }
+
+#num_chars {
+  color: #FEE08B; }
+
+#num_deaths {
+  color: #66C2A5; }
+
+#num_adventures {
+  color: #F46D43; }
+
+#num_dms {
+  color: #E6F598; }
+
+#session_xp {
+  color: #ABDDA4; }
+
+#num_recounts {
+  color: #9E0142; }
+
+#num_words {
+  color: #FDAE61; }
+
+#num_authors {
+  color: #ABDDA4; }
+
+#bonus_xp {
+  color: #5E4FA2; }
+
+.infog {
+  font-size: -webkit-xxx-large;
+  -webkit-text-stroke: 2px black; }
+
+#recount_container {
+  overflow-y: scroll;
+  border: 2px solid #000000; }
+
+.Black {
+  color: #9E0142; }
+
+.Bryn {
+  color: #D53E4F; }
+
+.Elizabeth {
+  color: #F46D43; }
+
+.Lophelios {
+  color: #FDAE61; }
+
+.Malotir {
+  color: #FEE08B; }
+
+.Mya {
+  color: #FFFFBF; }
+
+.Orangelad1 {
+  color: #E6F598; }
+
+.Seka {
+  color: #ABDDA4; }
+
+.Tarquinn {
+  color: #66C2A5; }
+
+.Yaviel {
+  color: #3288BD; }
+
+.Ygritte {
+  color: #5E4FA2; }
+
+.char_mention {
+  font-weight: bold; }
+
+/*# sourceMappingURL=six-weeks-style.css.map */

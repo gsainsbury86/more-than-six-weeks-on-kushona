@@ -1,14 +1,8 @@
-#TODO: plotly 
+#TODO: plotly
 # remove Week and TRUE from tooltip.
-# Fix background colour
 
-#TODO: General
-# background in grey
-
-#TODO: Text
-# highlight numbers using spans
-
-# Establish connection to PoststgreSQL using RPostgreSQL
+#TODO: recounts
+#fix background
 
 #database_params <- c(dbname = "********",
 #                             host = "********",
@@ -17,20 +11,32 @@
 #                             password = "********")
 #save(... = database_params,file = "/Users/george/Dropbox/D&D/Kushona/six-weeks-on-kushona/database_params")
 
+# Establish connection to PoststgreSQL using RPostgreSQL
 load(file = "/Users/George/Dropbox/D&D/Kushona/six-weeks-on-kushona/database_params")
-pool <- dbPool(drv <- dbDriver("PostgreSQL"), 
-               dbname = database_params["dbname"],
-               host = database_params["host"],
-               port = database_params["port"],
-               user = database_params["user"],
-               password = database_params["password"])
+pool <- dbPool(
+  drv <- dbDriver("PostgreSQL"),
+  dbname = database_params["dbname"],
+  host = database_params["host"],
+  port = database_params["port"],
+  user = database_params["user"],
+  password = database_params["password"]
+)
 
-weeks <- dbGetQuery(pool, "select max(week) from adventure")
-max_week <<- weeks[1, 1]
-character_names <<- dbGetQuery(pool, "select name from character order by id")
+calculate_max_week <- function() {
+  weeks <- dbGetQuery(pool, "select max(week) from adventure")
+  max_week <<- weeks[1, 1]
+  max_week
+}
+
+prev_max_week <<- calculate_max_week()
+
+character_names <<-
+  dbGetQuery(pool, "select name from character order by id")
 
 
-colour_spectrum <- brewer.pal(length(character_names$name), "Spectral")
+
+colour_spectrum <-
+  brewer.pal(length(character_names$name), "Spectral")
 
 wordcount <- function(str) {
   sapply(gregexpr("\\b\\W+\\b", str, perl = TRUE), function(x)
@@ -40,13 +46,12 @@ wordcount <- function(str) {
 killDbConnections <- function () {
   all_cons <- dbListConnections(drv = dbDriver("PostgreSQL"))
   print(all_cons)
-  for(con in all_cons)
+  for (con in all_cons)
     +  dbDisconnect(con)
   print(paste(length(all_cons), " connections killed."))
 }
 
-prepare_network_diagram <- function (){
-  
+prepare_network_diagram <- function () {
   network_list <- list()
   
   # no edges "zeroth" week - as empty ajacency
@@ -57,16 +62,17 @@ prepare_network_diagram <- function (){
     matrix.type = "adjacency"
   )
   
-  network.vertex.names(x = network_list[[1]]) <- character_names$name
+  network.vertex.names(x = network_list[[1]]) <-
+    character_names$name
   
   for (w in 1:max_week) {
     # create network edgelist matrix for week w
     query = paste0(
-      "select C1.id as c1id, 
-        C2.id as c2id, 
-        C1.name, 
-        C2.name, 
-        string_agg(adventure.name, ', ' ORDER by week) as adv_list, 
+      "select C1.id as c1id,
+      C2.id as c2id,
+      C1.name,
+      C2.name,
+      string_agg(adventure.name, ', ' ORDER by week) as adv_list,
       count(adventure.name) as num_adv
       from xp_record T1
       join xp_record T2 on not T1.id = T2.id
@@ -91,8 +97,8 @@ prepare_network_diagram <- function (){
       loops = FALSE,
       matrix.type = "edgelist"
     )
-
-  # set names and attributes
+    
+    # set names and attributes
     network.vertex.names(x = network_w) <- character_names$name
     set.edge.attribute(x = network_w,
                        attrname = "num_adventures",
@@ -163,8 +169,7 @@ prepare_network_diagram <- function (){
 }
 
 
-prepare_adventure_plot <- function(){
-
+prepare_adventure_plot <- function() {
   n_frames <- (max_week + 1) * 1
   
   # definitely a better way to do this but it works.
@@ -206,28 +211,28 @@ prepare_adventure_plot <- function(){
   
   # create tweens and melt DM columns
   query_framed <- data.frame(df)
-#  tween_data <-
-#    tween_elements(
-#      data = query_framed,
-#      time = 'week',
-#      group = 'name',
-#      ease = 'ease',
-#      nframes = n_frames - 1
-#    )
-#  melted <-melt(tween_data, id.vars = c("week", ".frame", ".group"))
+  #  tween_data <-
+  #    tween_elements(
+  #      data = query_framed,
+  #      time = 'week',
+  #      group = 'name',
+  #      ease = 'ease',
+  #      nframes = n_frames - 1
+  #    )
+  #  melted <-melt(tween_data, id.vars = c("week", ".frame", ".group"))
   
-#  mapping = aes(
-#    x = .group,
-#    y = value,
-#    fill = variable,
-#    frame = .frame,
-#    cumulative = TRUE,
-#    text = paste(.group)
-#  )
+  #  mapping = aes(
+  #    x = .group,
+  #    y = value,
+  #    fill = variable,
+  #    frame = .frame,
+  #    cumulative = TRUE,
+  #    text = paste(.group)
+  #  )
   
-    melted <- melt(query_framed, id.vars = c("name", "week"))
-    colnames(melted) <- c("Name", "Week", "DM", "Sessions")
-    
+  melted <- melt(query_framed, id.vars = c("name", "week"))
+  colnames(melted) <- c("Name", "Week", "DM", "Sessions")
+  
   plot_with_melted_tween <-
     (
       ggplot(
@@ -238,7 +243,6 @@ prepare_adventure_plot <- function(){
           fill = DM,
           frame = Week,
           cumulative = TRUE
-          #text = paste(.group)
         )
       ) + geom_bar(
         stat = "identity",
@@ -262,15 +266,23 @@ prepare_adventure_plot <- function(){
           hjust = 1,
           vjust = 0.5
         )
-      ) + labs(fill = "DM", x= "", y = "Number of Adventures", frame = "Week")
+      ) + labs(
+        fill = "DM",
+        x = "",
+        y = "Number of Adventures",
+        frame = "Week"
+      )
     )
-  adventure_plot <<- ggplotly(plot_with_melted_tween, height = 395, width = 550) %>% config(displayModeBar = F) %>% layout(xaxis=list(fixedrange=TRUE)) %>% layout(yaxis=list(fixedrange=TRUE))  %>% layout(showlegend=FALSE)
-
+  adventure_plot <<-
+    ggplotly(plot_with_melted_tween) %>% config(displayModeBar = F) %>% layout(xaxis =
+                                                                                 list(fixedrange = TRUE)) %>% layout(yaxis = list(fixedrange = TRUE))  %>% layout(showlegend =
+                                                                                                                                                                    FALSE)
   
-}
+  
+  }
 
 
-prepare_recount_word_count <- function(){
+prepare_recount_word_count <- function() {
   recount_info <-
     dbGetQuery(
       pool,
@@ -295,111 +307,134 @@ prepare_recount_word_count <- function(){
   }
   
   
-  recount_word_count <<- paste0('<span id = "num_recounts">',
-    recount_info[1, 1],
-    '</span> recounts with over <span id = "num_words">',
-    round_any(word_count, 1000, floor),
-    '</span> words from <span id = "num_authors">',
-    recount_info[1, 2],
-    '</span> authors, earning <span id = "bonus_xp">',
-    recount_info[1, 3],
-    '</span> Bonus XP.'
-  )
+  recount_word_count <<-
+    paste0(
+      '<span id = "num_recounts" class = "infog">',
+      recount_info[1, 1],
+      '</span> recounts with over <span id = "num_words" class = "infog">',
+      round_any(word_count, 1000, floor),
+      '</span> words from <span id = "num_authors" class = "infog">',
+      recount_info[1, 2],
+      '</span> authors, earning <span id = "bonus_xp" class = "infog">',
+      recount_info[1, 3],
+      '</span> Bonus XP.<span class="fill"></span>'
+    )
 }
 
-prepare_network_diagram()
-prepare_adventure_plot()
-prepare_recount_word_count()
-
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
   output$player_experience <- renderDataTable({
-    datatable(df <-
-      dbGetQuery(pool, 'select name as "Name", 
-                 total_xp as "XP", 
-                 level as "Level",
-                 race as "Race",
-                 class as "Class"
-                 from character_xp
-                 order by name'),
+    datatable(
+      df <-
+        dbGetQuery(
+          pool,
+          'select name as "Name",
+          total_xp as "XP",
+          level as "Level",
+          race as "Race",
+          class as "Class"
+          from character_xp
+          order by name'
+        ),
       selection = 'single',
       options = list(dom = 't', pageLength = -1),
       rownames = FALSE
-    ) %>% formatStyle(
-      'Name',
-      target='row',
-      backgroundColor = styleEqual(df$"Name",values = colour_spectrum)
-    )
+        ) %>% formatStyle(
+          'Name',
+          target = 'row',
+          backgroundColor = styleEqual(df$"Name", values = colour_spectrum)
+        )
   })
   
   
   output$list_of_adventures <- renderDataTable({
-    
     df <-
       dbGetQuery(
         pool,
         'SELECT week as "Week",
         name as "Adventure",
-        string_agg(\'<a href=\"\' || url || \'\"> \' || player_name || \'</a>\',\', \'::text) as "Recounts",
+        url as "Recounts",
+        player_name as "Author",
         min(string_agg) as "Adventurers"
         from
         adventure_recounts as sub
-        group by week,
-        name;'
-        )
-
+        group by player_name, url,week,
+        name
+        order by week, player_name;'
+      )
+    
+    table_of_adventrues <<- df
+    df <- df[,!(names(df) %in% c('Recounts'))]
+    
     gradients = list()
     
     #background: linear-gradient(red, yellow, green);
     
-    for(i in 1:length(df$Adventurers)){
-      advs <- strsplit(x = df$Adventurers[i],split = ",")
-      advs <- lapply(advs,trimws)
+    for (i in 1:length(df$Adventurers)) {
+      advs <- strsplit(x = df$Adventurers[i], split = ",")
+      advs <- lapply(advs, trimws)
       gradient_func <- "linear-gradient( to right, "
-      for(a in 1:length(advs[[1]])){
+      for (a in 1:length(advs[[1]])) {
         index <- which(character_names$name == advs[[1]][a])
         c2r <- col2rgb(colour_spectrum[index])
-        gradient_func <- paste0(gradient_func,paste0('rgb(',c2r[1],',',c2r[2],',',c2r[3],')'),',')
+        gradient_func <-
+          paste0(gradient_func,
+                 paste0('rgb(', c2r[1], ',', c2r[2], ',', c2r[3], ')'),
+                 ',')
       }
-      gradient_func <- substr(gradient_func, 1, nchar(gradient_func)-1)
-      gradient_func <- paste0(gradient_func,')')
+      gradient_func <-
+        substr(gradient_func, 1, nchar(gradient_func) - 1)
+      gradient_func <- paste0(gradient_func, ')')
       gradients[[i]] <- gradient_func
     }
     
     sel <- input$player_experience_rows_selected
-    if(length(sel)){
-      datatable(df[grepl(character_names[sel,],df$Adventurers),],
-                selection = 'none',
-                escape = FALSE,
-                options = list(dom = 't', pageLength = -1),
-                rownames = FALSE
-      )  %>% formatStyle(
-        'Adventurers',
-        #target='row',
-        background = styleEqual(df$"Adventurers",values = gradients)
-      )
-    }else{
-      datatable(df,
-                selection = 'none',
-                escape = FALSE,
-                options = list(dom = 't', pageLength = -1),
-                rownames = FALSE
-      )  %>% formatStyle(
-        'Adventurers',
-        #target='row',
-        background = styleEqual(df$"Adventurers",values = gradients)
-      )
+    if (length(sel)) {
+      datatable(
+        df[grepl(character_names[sel, ], df$Adventurers), ],
+        selection = 'single',
+        escape = FALSE,
+        options = list(dom = 't', pageLength = -1),
+        rownames = FALSE
+      )  %>% formatStyle('Adventurers',
+                         #target='row',
+                         background = styleEqual(df$"Adventurers", values = gradients))
+    } else{
+      datatable(
+        df,
+        selection = 'single',
+        escape = FALSE,
+        options = list(dom = 't', pageLength = -1),
+        rownames = FALSE
+      )  %>% formatStyle('Adventurers',
+                         #target='row',
+                         background = styleEqual(df$"Adventurers", values = gradients))
     }
-},server = FALSE)
+  }, server = FALSE)
   
   output$netPlot <- ndtv:::renderNdtvAnimationWidget({
+    max_week = calculate_max_week()
+    if (max_week > prev_max_week | !exists("network_diagram")) {
+      prepare_network_diagram()
+      prev_max_week <<- max_week
+    }
     network_diagram
   })
   
   output$plotlyBarPlot <- renderPlotly({
+    max_week = calculate_max_week()
+    if (max_week > prev_max_week | !exists("adventure_plot")) {
+      prepare_adventure_plot()
+      prev_max_week <<- max_week
+    }
     adventure_plot
-    })
-
+  })
+  
   output$recount_word_count <- renderText({
+    max_week = calculate_max_week()
+    if (max_week > prev_max_week | !exists("recount_word_count")) {
+      prepare_recount_word_count()
+      prev_max_week <<- max_week
+    }
     recount_word_count
   })
   
@@ -413,14 +448,15 @@ shinyServer(function(input, output) {
         from character"
       )
     
-    
-    char_string = paste0('<span id = "num_players">',
-                         char_info[1, 1],
-           '</span> players, <span id = "num_chars">',
-           char_info[1, 2],
-           '</span> characters and <span id = "num_deaths">',
-           char_info[1, 3],
-           '</span> deaths!')
+    char_string = paste0(
+      '<span id = "num_players" class = "infog">',
+      char_info[1, 1],
+      '</span> players, <span id = "num_chars" class = "infog">',
+      char_info[1, 2],
+      '</span> characters and <span id = "num_deaths" class = "infog">',
+      char_info[1, 3],
+      '</span> deaths!<span class="fill"></span>'
+    )
     char_string
     
   })
@@ -438,16 +474,59 @@ shinyServer(function(input, output) {
         and xp > 0"
       )
     
-    out_string <- paste0('<span id = "num_adventures">',
-      session_info[1, 1],
-      '</span> adventures by <span id = "num_DMs">',
-      session_info[1, 2],
-      '</span> DMs, earning a total of <span id = "session_xp">',
-      session_info[1, 3],
-      '</span> XP.'
-    )
+    out_string <-
+      paste0(
+        '<span id = "num_adventures" class = "infog">',
+        session_info[1, 1],
+        '</span> adventures by <span id = "num_dms" class = "infog">',
+        session_info[1, 2],
+        '</span> DMs, earning a total of <span id = "session_xp" class = "infog">',
+        session_info[1, 3],
+        '</span> XP.<span class="fill"></span>'
+      )
     out_string
     
+  })
+  
+  output$recount_frame <- renderText({
+    sel = input$list_of_adventures_rows_selected
+    if (length(sel)) {
+      src_url <- table_of_adventrues$Recounts[sel]
+      if (!is.na(src_url)) {
+        blog <- read_html(src_url)
+        content_html <- html_nodes(blog, '.post-body')
+        content_text <- html_text(content_html)
+        content_text = (paste0("<p>", content_text, "</p>"))
+        print(content_text)
+        if (grepl("\n\n", content_text)) {
+          content_text = gsub("\r?\n\n|\r", "<br/>", content_text)
+        } else{
+          content_text = gsub("\r?\n|\r", "<br/>", content_text)
+        }
+        for (i in 1:length(character_names$name)) {
+          this_char = character_names$name[i]
+          content_text = gsub(
+            this_char,
+            paste0(
+              '<span class = "char_mention ',
+              this_char,
+              '">',
+              this_char,
+              '</span>'
+            ),
+            content_text
+          )
+        }
+        content_text
+      }
+    } else{
+      ""
+    }
+  })
+  
+  session$onFlushed(function() {
+    session$sendCustomMessage(type = 'jsCode',
+                              list(value = "setTimeout(function() {set_recount_height();}, 1000);"))
   })
   
 })
