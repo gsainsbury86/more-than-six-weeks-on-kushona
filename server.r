@@ -223,10 +223,10 @@ shinyServer(function(input, output, session) {
       compute.animation(net.dyn, animation.mode = "kamadakawai", slice.par = list(start = 0, end = max_week, interval = 1, aggregate.dur = 1, rule = "any"))
       network_diagram = render.d3movie(net.dyn,usearrows = F, 
                                        label = function(slice) { get.vertex.attribute(slice, "vertex.names") }, 
-                                       displaylabels = T, bg = "#ffffff", vertex.border = "#333333", vertex.cex = 3, 
+                                       displaylabels = T, bg = "#ffffff", vertex.border = "#333333",
                                        label.col = "black", vertex.col = spectrum, edge.lwd = 5, edge.curved=0.4, 
                                        edge.col = function(slice) { v = (1 - get.edge.value(slice, "percentage_adventures")); rgb(v, v, v) }, 
-                                       vertex.cex = function(slice) { 20*get.vertex.attribute(slice, "vertex.xp")/20000 }, 
+                                       vertex.cex = function(slice) { 5*get.vertex.attribute(slice, "vertex.xp")/20000 }, #TODO: Max for the week
                                        vertex.tooltip = function(slice) { paste("<b>", get.vertex.attribute(slice, "vertex.names"),"</b>")}, 
                                        edge.tooltip = function(slice) { paste("<b>",get.edge.value(slice, "num_adventures")," Adventures:</b>", get.edge.value(slice, "adventure_list")) },
                                        render.par = list(tween.frames = 10, show.time = T), 
