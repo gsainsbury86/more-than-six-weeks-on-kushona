@@ -12,19 +12,21 @@ library(plotly)
 library(pool)
 library(DT)
 library(XML)
+library(markdown)
+library(glue)
 
 # Define UI for application that draws a histogram
 shinyUI(fixedPage(
   # Application title
   includeCSS("www/css/six-weeks-style.css"),
   tags$head(
-    tags$script(src = "js/six-weeks-js.js"),
-    tags$script(src = "js/showdown.js"),
-    tags$script(
-      'Shiny.addCustomMessageHandler("jsCode", function(message) { console.log(message.value); eval(message.value); });'
-    )
+    tags$script(src = "js/six-weeks-js.js")
+    #tags$script(src = "js/showdown.js"),
+    #tags$script(
+    #  'Shiny.addCustomMessageHandler("jsCode", function(message) { console.log(message.value); eval(message.value); });'
+    #)
   ),
-  titlePanel(div("Kushona", align = "center")),
+  titlePanel("Kushona"),
   hr(),
   
   #div(htmlOutput("character_count")),
@@ -46,7 +48,7 @@ shinyUI(fixedPage(
   fixedRow(
     #htmlOutput("session_count"),
     column(6,dataTableOutput('list_of_magic_items')),
-    column(6,div(id = "magic_item_container"))
+    column(6,htmlOutput("magic_item_frame"))
   ),
   hr(),
   fixedRow(
