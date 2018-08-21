@@ -77,7 +77,9 @@ spectrum = getPalette(length(character_names$name))
 shinyServer(function(input, output, session) {
   output$player_experience <- renderDataTable({
     if(reload_required(EXP_TABLE) | !(file.exists(EXP_TABLE))){
-      player_experience_rs <- dbGetQuery(pool, 'select name as "Name", xp as "XP", level as "Level", race as "Race", class as "Class" from character_xp order by id;')
+      player_experience_rs <- dbGetQuery(pool, 'SELECT name as "Name", max(xp) as "XP", max(LEVEL) as "Level", race as "Race", class as "Class", class_option  as "Subclass"
+                                                        FROM character_xp GROUP BY character_id, name, race, class, class_option 
+                                                        ORDER BY character_id;')
       player_experience_table = datatable(player_experience_rs, selection = 'single', options = list(dom = 't', pageLength = -1), rownames = FALSE) %>% formatStyle( 'Name', target = 'row', backgroundColor = styleEqual(player_experience_rs$"Name", values = spectrum))
       save(... = player_experience_table, file = EXP_TABLE)
     }else{
@@ -135,7 +137,7 @@ shinyServer(function(input, output, session) {
       network_list = list()
       
       # no edges "zeroth" week - as empty ajacency
-      week_0 = dbGetQuery(pool, "select character.name from character where starting_level = 1;")
+      week_0 = dbGetQuery(pool, "select character.name from character where starting_week = 0;")
       
       empty_matrix = matrix(0, length(week_0$name), length(week_0$name))
       network_list[[1]] = as.network(x = empty_matrix, directed = FALSE, loops = FALSE, matrix.type = "adjacency")
@@ -144,6 +146,8 @@ shinyServer(function(input, output, session) {
       #empty_matrix = matrix(0, length(character_names$name), length(character_names$name))
       #network_list[[1]] = as.network(x = empty_matrix, directed = FALSE, loops = FALSE, matrix.type = "adjacency")
       #set.vertex.attribute(x = network_list[[1]], attrname = "vertex.names",value = character_names$name)
+      
+      xp_per_week = dbGetQuery(pool, "SELECT * FROM character_xp ORDER BY adventure_week,character_id;")
       
       for (w in 1:max_week) {
         # create network edgelist matrix for week w
@@ -163,36 +167,10 @@ shinyServer(function(input, output, session) {
         #attr(x = network_matrix, which = 'n') = length(character_names$name)
         network_w = as.network(x = network_matrix, directed = FALSE, loops = FALSE, matrix.type = "edgelist")
         
-        xp_per_week = dbGetQuery(pool, paste0("WITH xp_table AS (
-          SELECT character_1.id AS character_id,
-          sum(adv_level.xp_per_session) AS xp
-          FROM character character_1
-          JOIN record ON character_1.id = record.character_id
-          JOIN adventure ON record.adventure_id = adventure.id
-          JOIN level adv_level ON adv_level.level = adventure.level
-          WHERE adventure.week < ",w,"
-          GROUP BY character_1.id
-        )
-        SELECT character.id,
-        character.name,
-        start_level.start_xp + COALESCE(xp_table.xp, 0::bigint) AS xp,
-        l.level,
-        character.race,
-        character.class,
-        character.class_option
-        FROM xp_table
-        RIGHT JOIN character ON xp_table.character_id = character.id
-        JOIN level start_level ON start_level.level = character.starting_level
-        LEFT JOIN LATERAL ( SELECT level.level
-                            FROM level
-                            WHERE (level.start_xp::numeric - (level.xp_per_session / 2)::numeric) < (start_level.start_xp + COALESCE(xp_table.xp, 0::bigint))::numeric
-                            ORDER BY level.level DESC
-                            LIMIT 1) l ON true
-        ORDER BY xp_table.character_id;"))
-        
         # set names and attributes
         set.vertex.attribute(x = network_w, attrname = "vertex.names",value = character_names$name)
-        set.vertex.attribute(x = network_w, attrname = "vertex.xp",value = xp_per_week$xp)
+        set.vertex.attribute(x = network_w, attrname = "vertex.xp",value = xp_per_week[xp_per_week$adventure_week == w,]$xp)
+        #set.vertex.attribute(x = network_w, attrname = "vertex.max_this_week",value = xp_per_week[xp_per_week$adventure_week == w,]$max_this_week)
         set.edge.attribute(x = network_w, attrname = "num_adventures", value = df$num_adv)
         set.edge.attribute(x = network_w, attrname = "percentage_adventures", value = df$num_adv/w)
         set.edge.attribute(x = network_w, attrname = "adventure_list", value = df$adv_list)
@@ -226,7 +204,7 @@ shinyServer(function(input, output, session) {
                                        displaylabels = T, bg = "#ffffff", vertex.border = "#333333",
                                        label.col = "black", vertex.col = spectrum, edge.lwd = 5, edge.curved=0.4, 
                                        edge.col = function(slice) { v = (1 - get.edge.value(slice, "percentage_adventures")); rgb(v, v, v) }, 
-                                       vertex.cex = function(slice) { 5*get.vertex.attribute(slice, "vertex.xp")/20000 }, #TODO: Max for the week
+                                       vertex.cex = function(slice) { log10(get.vertex.attribute(slice, "vertex.xp"))},
                                        vertex.tooltip = function(slice) { paste("<b>", get.vertex.attribute(slice, "vertex.names"),"</b>")}, 
                                        edge.tooltip = function(slice) { paste("<b>",get.edge.value(slice, "num_adventures")," Adventures:</b>", get.edge.value(slice, "adventure_list")) },
                                        render.par = list(tween.frames = 10, show.time = T), 
