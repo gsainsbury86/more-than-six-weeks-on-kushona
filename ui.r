@@ -14,6 +14,7 @@ library(DT)
 library(XML)
 library(markdown)
 library(glue)
+library(colorspace)
 
 # Define UI for application that draws a histogram
 shinyUI(fixedPage(
@@ -53,9 +54,9 @@ shinyUI(fixedPage(
   hr(),
   fixedRow(
     #htmlOutput("session_count"),
-    column(6,HTML('<div id = "plotly_spacer" style="height: 50px;"></div>'),
-           plotlyOutput("plotlyBarPlot", width = "auto")),
-    column(6)
+    column(12,HTML('<div id = "plotly_spacer" style="height: 50px;"></div>'),
+           plotlyOutput("plotlyBarPlot", width = "auto"))#,
+    #column(6)
   )
   
 ))
