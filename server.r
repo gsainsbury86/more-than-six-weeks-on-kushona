@@ -5,17 +5,16 @@
 #                             password = "********")
 #save(... = database_params,file = DB_PARAMS)
 
-#filenames
 DB_PARAMS = "database_params"
-DATA_FILE = "data_file.cache"
-ADVEN_LST = "adventure_list.cache"
-MAGIC_LST = "magic_item_list.cache"
-NETWORK_D = "network_diagram.cache"
-EXP_TABLE = "experience_table.cache"
-ADVEN_PLT = "adventure_plot.cache"
-#cache_files = c(DATA_FILE,ADVEN_LST,MAGIC_LST,NETWORK_D,EXP_TABLE,ADVEN_PLT
+CACHE_DIR = "cache_files"
+DATA_FILE = paste(CACHE_DIR,"data_file.cache", sep="/")
+ADVEN_LST = paste(CACHE_DIR,"adventure_list.cache", sep="/")
+MAGIC_LST = paste(CACHE_DIR,"magic_item_list.cache", sep="/")
+NETWORK_D = paste(CACHE_DIR,"network_diagram.cache", sep="/")
+EXP_TABLE = paste(CACHE_DIR,"experience_table.cache", sep="/")
+ADVEN_PLT = paste(CACHE_DIR,"adventure_plot.cache", sep="/")
+cache_files = c(DATA_FILE,ADVEN_LST,MAGIC_LST,NETWORK_D,EXP_TABLE,ADVEN_PLT)
 
-#Establish connection to PoststgreSQL using RPostgreSQL
 load(file = DB_PARAMS)
 pool = dbPool(drv <- dbDriver("PostgreSQL"),   dbname = database_params["dbname"],  host = database_params["host"],  port = database_params["port"],  user = database_params["user"],  password = database_params["password"])
 onStop(function() {
@@ -24,9 +23,11 @@ onStop(function() {
 
 reload_required = function(filename){
   
+  dir.create(CACHE_DIR, showWarnings = FALSE)
+
   if (!file.exists(filename)){ return(TRUE) }
   else{
-    latest_update = dbGetQuery(pool, "select max(updated) from update_log")[1, 1]
+    latest_update = dbGetQuery(pool, read_file("sql_queries/latest_update_query.sql"))[1, 1]
     cached = file.mtime(filename)
     if(is.na(latest_update) | is.na(cached)){ return(FALSE) }
     return(cached < latest_update)
@@ -34,18 +35,14 @@ reload_required = function(filename){
 }
 
 if(reload_required(DATA_FILE) | !exists(DATA_FILE)){
-  weeks = dbGetQuery(pool, "select max(week) from adventure")
+  weeks = dbGetQuery(pool, read_file("sql_queries/max_week_query.sql"))
   max_week = weeks[1, 1]
-  character_names = dbGetQuery(pool, "select name, COALESCE(final_week,(select max(week) from adventure)) as final_week from character order by id;")
-  player_names = dbGetQuery(pool, "select player_name from character order by id;")
+  character_names = dbGetQuery(pool, read_file("sql_queries/character_names_query.sql"))
+  player_names = dbGetQuery(pool, read_file("sql_queries/player_names_query.sql"))
   save(... = max_week, character_names, player_names, file=DATA_FILE)
 }else{
   load(DATA_FILE)
 }
-
-#getPalette = colorRampPalette(brewer.pal(length(player_names), "Spectral"))
-#spectrum = getPalette(length(character_names$name))
-#print(spectrum)
 
 cols = brewer.pal(11, "Spectral")
 
@@ -59,22 +56,17 @@ cols1 <- as(cols1, "RGB")
 cols1 <- hex(cols1)
 spectrum = cols1
 
-
 shinyServer(function(input, output, session) {
   output$player_experience <- renderDataTable({
     if(reload_required(EXP_TABLE) | !(file.exists(EXP_TABLE))){
-      player_experience_rs <- dbGetQuery(pool, paste('SELECT character.player_name as "Player Name", character.name as "Name", max(total_xp) as "XP", max(LEVEL) as "Level", character.race || \' \' || character.class || \' (\' || character.class_option || \')\' as "Race / Class"
-                                         FROM character_xp 
-JOIN character on character.id = character_id
-                WHERE (final_week >= ',max_week,' or final_week is NULL) 
-                                         GROUP BY character_id, character.player_name, character.name, character.race, character.class, character.class_option
-                                         ORDER BY player_name;'))
+      player_experience_rs <- dbGetQuery(pool, glue(read_file("sql_queries/player_experience_table_query.sql")))
       save(... = player_experience_rs, file = EXP_TABLE)
     }else{
       load(file=EXP_TABLE)
     }
-      player_experience_table = datatable(player_experience_rs, selection = 'single', options = list(dom = 't', pageLength = -1), rownames = FALSE) %>% formatStyle( 'Player Name', target = 'row', "-webkit-text-color" = "0px black", "-webkit-text-fill-color" = styleEqual(unique(player_names$player_name), values = spectrum))
-
+    g_player_experience_rs <<- player_experience_rs
+    player_experience_table = datatable(player_experience_rs, selection = 'single', options = list(dom = 't', pageLength = -1), rownames = FALSE) %>% formatStyle( 'Player Name', target = 'row', "-webkit-text-color" = "0px black", "-webkit-text-fill-color" = styleEqual(unique(player_names$player_name), values = spectrum))
+    
     return(player_experience_table)
   })
   
@@ -83,7 +75,7 @@ JOIN character on character.id = character_id
     table_of_adventures = adventure_results_rs
     sel <- input$player_experience_rows_selected
     if(length(sel)){
-      table_of_adventures = table_of_adventures[grepl(character_names[sel, ], table_of_adventures$Adventurers), ]
+      table_of_adventures = table_of_adventures[grepl(g_player_experience_rs[[sel,2]], table_of_adventures$Adventurers), ]
     }else{
       return(table_of_adventures)
     }
@@ -91,7 +83,7 @@ JOIN character on character.id = character_id
   
   output$list_of_adventures <- renderDataTable({
     if(reload_required(ADVEN_LST) | !file.exists(ADVEN_LST)){
-      adventure_results_rs = dbGetQuery(pool, 'SELECT * from adventure_stories_and_summaries;')
+      adventure_results_rs = dbGetQuery(pool, read_file("sql_queries/adventure_stories_query.sql"))
       save(... = adventure_results_rs, file = ADVEN_LST)
     }else{
       load(ADVEN_LST)
@@ -101,71 +93,48 @@ JOIN character on character.id = character_id
     
     table_of_adventures$"Stories" = lapply(X = table_of_adventures$"Stories", FUN = function(url){ if(is.na(url)){ "" } else{ paste0("<a href=\"",url,"\">",tools::toTitleCase(sub(".*/","",gsub("-"," ",sub(".html","",url)))),"</a>") }})
     
-    list_of_adventures = datatable(table_of_adventures[, !(names(table_of_adventures) %in% c("Summary","Summary Author"))], selection = 'single', escape = FALSE, options = list(dom = 'tp', pageLength = 10), rownames = FALSE) %>% formatStyle('Author',target = 'row', color = styleEqual(levels = unique(player_names$player_name), values = spectrum))
+    table_of_adventures$"Summary" = lapply(X = table_of_adventures$"Summary", FUN = function(x){if(is.na(x)){ "" } else{ markdown::markdownToHTML(text = x,fragment.only = TRUE) }})
+    
+    list_of_adventures = datatable(table_of_adventures, selection = 'none', escape = FALSE, options = list(columnDefs = list(list(visible=FALSE, targets=c(4,6))),dom = 'tp', pageLength = 5), rownames = FALSE) %>% formatStyle('Summary Author',target = 'row', color = styleEqual(levels = unique(player_names$player_name), values = spectrum))
     
     return(list_of_adventures)
   }, server = FALSE)
-  
-  #our modal dialog box
-  adventure_summary_popup <- function(failed=FALSE){
-    sel = input$list_of_adventures_rows_selected
-    table_of_adventures = filtered_aventures()
-    summary_text = table_of_adventures[sel,]$"Summary"
-    if(is.na(summary_text)){ summary_text = ""}
-    modalDialog(HTML(markdown::markdownToHTML(text = summary_text,fragment.only = TRUE)), title = table_of_adventures[sel,]$"Summary Author", easyClose = TRUE)
-  }
-  
-  #event to trigger the modal box to appear
-  observeEvent(input$list_of_adventures_rows_selected,{
-    showModal(adventure_summary_popup())
-  })
-  
   
   output$netPlot <- ndtv:::renderNdtvAnimationWidget({
     if (reload_required(NETWORK_D) | !file.exists(NETWORK_D)) {
       network_list = list()
       
       # no edges "zeroth" week - as empty ajacency
-      week_0 = dbGetQuery(pool, "select character.name from character where starting_week = 0;")
+      week_0 = dbGetQuery(pool, read_file("sql_queries/graph_week_zero_query.sql"))
       
       empty_matrix = matrix(0, length(week_0$name), length(week_0$name))
       network_list[[1]] = as.network(x = empty_matrix, directed = FALSE, loops = FALSE, matrix.type = "adjacency")
       set.vertex.attribute(x = network_list[[1]], attrname = "vertex.names",value = week_0$name)
       set.vertex.attribute(x = network_list[[1]], attrname = "vertex.level",value = 1)
       set.vertex.attribute(x = network_list[[1]], attrname = "vertex.player_name",value = player_names$player_name)
-      set.vertex.attribute(x = network_list[[1]], attrname = "vertex.alpha",value = pmin(character_names$final_week/1,1))
-
-      xp_per_week = dbGetQuery(pool, "SELECT * FROM character_xp ORDER BY adventure_week,character_id;")
+      set.vertex.attribute(x = network_list[[1]], attrname = "vertex.alpha",value = pmin(character_names$final_adventuring_week/1,1))
+      
+      xp_per_week = dbGetQuery(pool, read_file("sql_queries/graph_xp_per_week_query.sql"))
       for (w in 1:max_week) {
         # create network edgelist matrix for week w
-        query = paste0("select C1.id as c1id, C2.id as c2id, C1.name, C2.name, string_agg(adventure.name, ', ' ORDER by week) as adv_list, count(adventure.name) as num_adv 
-                       from record T1 join record T2 on not T1.id = T2.id 
-                       join adventure on T1.adventure_id = adventure.id 
-                       join character C1 on T1.character_id = C1.id 
-                       join character C2 on T2.character_id = C2.id 
-                       where T1.adventure_id = T2.adventure_id and C1.id < C2.id and week <= ", w, "
-
-                       group by C1.id, C2.id order by C1.id, C2.id")
+        query = glue(read_file("sql_queries/graph_week_w_query.sql"))
         df <- dbGetQuery(pool, query)
         
         # convert to network - edgelist (simpler)
         network_matrix = as.matrix(df[,1:2])
-        #attr(x = network_matrix, which = 'n') = length(character_names$name)
         network_w = as.network(x = network_matrix, directed = FALSE, loops = FALSE, matrix.type = "edgelist")
-
+        
         level_this_week = aggregate(x = xp_per_week[xp_per_week$adventure_week <= w,]$level, by=list(xp_per_week[xp_per_week$adventure_week <= w,]$character_id), max)
         Group.1 = seq(1,11)
         x = rep(1,11)
         fix_week_one = rbind(level_this_week,data.frame(Group.1,x))
         level_this_week_fixed = aggregate(fix_week_one$x,by=list(fix_week_one$Group.1), max)
         
-        #print(character_names$final_week)
-        
         # set names and attributes
         set.vertex.attribute(x = network_w, attrname = "vertex.names",value = character_names$name)
         set.vertex.attribute(x = network_w, attrname = "vertex.player_name",value = player_names$player_name)
         set.vertex.attribute(x = network_w, attrname = "vertex.level",value = level_this_week_fixed$x)
-        set.vertex.attribute(x = network_w, attrname = "vertex.alpha",value = pmin(character_names$final_week/w,1))
+        set.vertex.attribute(x = network_w, attrname = "vertex.alpha",value = pmin(character_names$final_adventuring_week/w,1))
         set.edge.attribute(x = network_w, attrname = "num_adventures", value = df$num_adv)
         set.edge.attribute(x = network_w, attrname = "weight", value = df$num_adv)
         set.edge.attribute(x = network_w, attrname = "percentage_adventures", value = df$num_adv/w)
@@ -179,7 +148,7 @@ JOIN character on character.id = character_id
                                create.TEAs = TRUE, 
                                edge.TEA.names = c("num_adventures", "adventure_list"), 
                                vertex.pid = "vertex.names")
-
+      
       
       compute.animation(net.dyn, animation.mode = "kamadakawai", slice.par = list(start = 0, end = max_week, interval = 1, aggregate.dur = 1, rule = "any"))
       network_diagram = render.d3movie(net.dyn,usearrows = F, 
@@ -189,19 +158,18 @@ JOIN character on character.id = character_id
                                        vertex.col = function(slice){
                                          spectrum_extended = spectrum[match(get.vertex.attribute(slice, "vertex.player_name"),player_names$player_name)]
                                          unname(mapply(spectrum_extended,FUN = adjustcolor,alpha.f = get.vertex.attribute(slice,"vertex.alpha")))
-                                        }, 
+                                       }, 
                                        edge.lwd = function(slice){
                                          if(typeof(get.edge.attribute(slice, "num_adventures")) == "double"){
-                                          get.edge.attribute(slice, "num_adventures")^(1/3)
+                                           get.edge.attribute(slice, "num_adventures")^(1/3)
                                          }else{
                                            1
                                          }
-                                         },
+                                       },
                                        edge.curved=.4, 
                                        edge.col = function(slice) { v = (1 - get.edge.attribute(slice, "percentage_adventures")); rgb(v, v, v) }, 
                                        vertex.sides = function(slice){
                                          # One of “none”, “circle”, “square”, “csquare”, “rectangle” “crectangle”, “vrectangle”, “pie”, “raster”, or “sphere”
-                                         # class - triangle for melee, 
                                          pmax(3,get.vertex.attribute(slice, "vertex.level"))
                                        },
                                        vertex.cex = function(slice) { get.vertex.attribute(slice, "vertex.level")^(2/3)},
@@ -221,29 +189,22 @@ JOIN character on character.id = character_id
     if (reload_required(ADVEN_PLT) | !file.exists(ADVEN_PLT)) {
       
       # definitely a better way to do this but it works.
-      query_week_zero = "SELECT character.player_name, 0 AS \"Ming\",0 AS \"George\", 0 AS \"Tyson\", 0 AS \"Ben\", 0 AS week FROM character"
+      query = read_file("sql_queries/bar_plot_week_zero_query.sql")
       
-      query = query_week_zero
-      
-      for (i in 1:max_week) {
-        query = paste(query, "UNION SELECT character.player_name, COALESCE(Sum(\"Ming\"), 0) AS \"Ming\",",
-                      " COALESCE(Sum(\"George\"), 0) AS \"George\", COALESCE(Sum(\"Tyson\"), 0) AS \"Tyson\",",
-                      " COALESCE(Sum(\"Ben\"), 0) AS \"Ben\", ",i, " AS week FROM",
-                      " (SELECT * FROM adventures_by_player_and_dm) AS T 
-                      RIGHT JOIN character ON T.NAME = character.NAME WHERE T.week <= ", i,"GROUP BY character.player_name")
+      for (w in 1:max_week) {
+        query = paste(query, glue(read_file("sql_queries/bar_plot_week_w_query.sql")))
       }
-      query = paste(query, "ORDER BY player_name, week")
       
       melted <- melt(data.frame(dbGetQuery(pool, query)), id.vars = c("player_name", "week"))
       colnames(melted) <- c("Name", "Week", "DM", "Sessions")
       
-        plot_with_melted_tween = ggplot(data = melted, aes(x = Name, y = Sessions, fill = DM, frame = Week)) + 
+      plot_with_melted_tween = ggplot(data = melted, aes(x = Name, y = Sessions, fill = DM, frame = Week)) + 
         geom_bar(stat = "identity", position = "dodge", width = 0.9) + 
         scale_fill_manual(values = c("Ming" = spectrum[3], "Ben" = spectrum[9], "George" = spectrum[4], "Tyson" = spectrum[8])) + 
         theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.text.x = element_text(angle = 90,hjust = 1, vjust = 0.5)) + 
         labs(fill = "DM", x = "",y = "Number of Adventures",frame = "Week") +
-          guides(guide_legend())
-
+        guides(guide_legend())
+      
       
       adventure_plot = ggplotly(plot_with_melted_tween) %>% config(displayModeBar = F) %>% layout(xaxis = list(fixedrange = TRUE)) %>% layout(yaxis = list(fixedrange = TRUE))  %>% layout(showlegend = FALSE)
       
@@ -258,7 +219,7 @@ JOIN character on character.id = character_id
     list_of_magic_items = magic_items_rs
     sel <- input$player_experience_rows_selected
     if(length(sel)){
-      return(list_of_magic_items[grepl(character_names[sel, ], list_of_magic_items$Character),])
+      return(list_of_magic_items[grepl(g_player_experience_rs[[sel,2]], list_of_magic_items$Character),])
     }else{
       return(list_of_magic_items)
     }
@@ -266,12 +227,12 @@ JOIN character on character.id = character_id
   
   output$list_of_magic_items = renderDataTable({
     if(reload_required(MAGIC_LST) | !file.exists(MAGIC_LST)){
-      magic_items_rs = dbGetQuery(pool, 'select magic_item.name as "Item", adventure.name as "Found", requires_attunement, description, rules, character.name as "Character", character.player_name as "player_name" FROM magic_item join adventure on adventure.id = adventure_id join character on character.id = character_id ORDER BY adventure.id DESC;')
+      magic_items_rs = dbGetQuery(pool, glue(read_file("sql_queries/magic_item_query.sql")))
       save(... = magic_items_rs, file = MAGIC_LST)
     }
     else{ load(MAGIC_LST)}
     
-    list_of_magic_items = datatable( reactive_list_of_magic_items()[,!(names(magic_items_rs) %in% c('description', 'rules', 'requires_attunement'))], selection = 'single', escape = FALSE, options = list(dom = 'tp', pageLength = 10, columnDefs = list(list(visible=FALSE, targets=c(3)))), rownames = FALSE) %>% formatStyle('player_name', target = 'row', color = styleEqual(levels = unique(player_names$player_name), values = spectrum))
+    list_of_magic_items = datatable( reactive_list_of_magic_items(), selection = 'single', escape = FALSE, options = list(dom = 'tp', pageLength = 10, columnDefs = list(list(visible=FALSE, targets=c(2,3,4,6)))), rownames = FALSE) %>% formatStyle('player_name', target = 'row', color = styleEqual(levels = unique(player_names$player_name), values = spectrum))
     return(list_of_magic_items)
   }, server = FALSE)
   
@@ -281,27 +242,14 @@ JOIN character on character.id = character_id
   })
   
   output$magic_item_frame <- renderText({
-    #observeEvent(input$list_of_magic_items_rows_selected,{
     load(MAGIC_LST)
     magic_item_sel <- input$list_of_magic_items_rows_selected
     
     if(length(magic_item_sel)){
       item = filteredTable_selected()
-      if(item$requires_attunement){
-        req = "_Requires Attunement_"
-      }else{ 
-        req = ""
-      }
-      if(!is.na(item$description)){
-        desc = item$description
-      }else{ 
-        desc = ""
-      }
-      if(!is.na(item$rules)){
-        rules = item$rules
-      }else{ 
-        rules = ""
-      }
+      if(item$requires_attunement){ req = "_Requires Attunement_" }else{ req = "" }
+      if(!is.na(item$description)){ desc = item$description }else{ desc = "" }
+      if(!is.na(item$rules)){ rules = item$rules } else{ rules = "" }
       
       markdown = glue(paste("# {item$Item} #",
                             "#### {req} ####",
@@ -311,9 +259,7 @@ JOIN character on character.id = character_id
                             "{rules}",sep="\n"))
       
       item_html = markdown::markdownToHTML(text=markdown,fragment.only = TRUE)
-    }else{
-      item_html = ""
-    }
+    }else{ item_html = "" }
     return(item_html)
   })
   

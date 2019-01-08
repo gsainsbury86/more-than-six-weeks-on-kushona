@@ -15,6 +15,7 @@ library(XML)
 library(markdown)
 library(glue)
 library(colorspace)
+library(readr)
 
 # Define UI for application that draws a histogram
 shinyUI(fixedPage(
