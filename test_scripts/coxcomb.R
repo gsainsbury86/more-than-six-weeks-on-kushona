@@ -4,35 +4,37 @@ library(RColorBrewer)
 library(ggplot2)
 library(plotly)
 library(plyr)
+library(RPostgreSQL)
+library(pool)
+library(stringr)
+
+DB_PARAMS = "database_params"
+load(file = paste0('/Users/a1132077/Google Drive/D&D/Kushona/six-weeks-on-kushona/',DB_PARAMS))
+pool = dbPool(drv <- dbDriver("PostgreSQL"),   dbname = database_params["dbname"],  host = database_params["host"],  port = database_params["port"],  user = database_params["user"],  password = database_params["password"])
+
+killDbConnections <- function () {
+  all_cons <- dbListConnections(drv = dbDriver("PostgreSQL"))
+print(all_cons)
+  for (con in all_cons)
+    +  dbDisconnect(con)
+  print(paste(length(all_cons), " connections killed."))
+}
+
+killDbConnections()
 
 
-# Establish connection to PoststgreSQL using RPostgreSQL
-drv <- dbDriver("PostgreSQL")
-# Full version of connection seetting
-con <- dbConnect(
-  drv = drv,
-  dbname = "Kushona",
-  host = "www.kushona.xyz",
-  port = 5432,
-  user = "readonlyuser",
-  password = "readonlyuser"
-)
 
-
-query = "select character.player_name, sub.name, xp
-from(select dm_id, week, adventure.name, xp, rank() over (partition by adventure_id order by xp asc )
+query = "select character.player_name, sub.name, xp, adventure_id
+from(select dm_id, week, adventure.name, adventure_id, xp, rank() over (partition by adventure_id order by xp asc )
 from xp_record join adventure on adventure_id = adventure.id
 where Bonus = False
 and xp > 0) as sub
 join character on dm_id = character.id
 where rank = 1
-group by character.player_name, sub.name, xp
-order by character.player_name asc, xp asc"
+group by character.player_name, sub.name, xp, adventure_id
+order by xp asc, character.player_name asc"
 
-weeks_rs <- dbSendQuery(con, query)
-weeks <- fetch(weeks_rs, n = -1)
-dbClearResult(weeks_rs)
-
+weeks <- dbGetQuery(pool, query)
 
 
 #http://robinlovelace.net/r/2013/12/27/coxcomb-plots-spiecharts-R.html
@@ -46,7 +48,7 @@ colour_spectrum <- brewer.pal(11, "Spectral")
 
 
 new_spec <- list()
-adventures_by_dm <- paste(weeks$player_name, weeks$name)
+adventures_by_dm <- sort(paste(weeks$player_name, str_pad(weeks$adventure_id,3,pad=0), weeks$name),decreasing = TRUE)
 curr_DM <- ""
 for (i in 1:length(adventures_by_dm)) {
   if (grepl("Ming", adventures_by_dm[i])) {
@@ -95,9 +97,11 @@ final_spec <- unlist(c(dm_spec, new_spec))
 ddply(weeks,  ~ player_name, summarise, xp = sum(xp))
 
 
-ggplotly(
-  ggplot(weeks, order = xp) +  
-    geom_bar(
+# https://github.com/ropensci/plotly/issues/878
+# waiting on plotly to work with polar coords
+
+plot = ggplot(weeks, order = xp) +  
+  geom_bar(
     aes(x = 1.5,
         y = xp,
         fill = player_name)
@@ -106,17 +110,19 @@ ggplotly(
     stat = "identity",
     width = 3
   )  +  
-    geom_bar(
+  geom_bar(
     aes(
       x = 3.5,
       y = xp,
-      fill = paste(player_name, name)
+      fill = paste(player_name, str_pad(adventure_id,3,pad=0), name)
     )
     ,
     colour = "black",
     position = "fill",
     stat = "identity"
   ) +
-    #coord_polar("y") +
-    scale_fill_manual(values = final_spec)
-)
+  coord_polar("y") +
+  scale_fill_manual(values = final_spec)
+
+
+ggplotly(plot)
