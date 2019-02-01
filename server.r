@@ -24,7 +24,7 @@ onStop(function() {
 reload_required = function(filename){
   
   dir.create(CACHE_DIR, showWarnings = FALSE)
-
+  
   if (!file.exists(filename)){ return(TRUE) }
   else{
     latest_update = dbGetQuery(pool, read_file("sql_queries/latest_update_query.sql"))[1, 1]
@@ -91,11 +91,13 @@ shinyServer(function(input, output, session) {
     
     table_of_adventures = filtered_aventures()
     
-    table_of_adventures$"Stories" = lapply(X = table_of_adventures$"Stories", FUN = function(url){ if(is.na(url)){ "" } else{ paste0("<a href=\"",url,"\">",tools::toTitleCase(sub(".*/","",gsub("-"," ",sub(".html","",url)))),"</a>") }})
+    table_of_adventures$"Stories" = lapply(X = table_of_adventures$"Stories", FUN = function(urls){ if(is.na(urls)){ "" } else{ 
+      lapply(X = strsplit(urls,"&"), FUN = function(url){ paste0("<a href=\"",url,"\">",tools::toTitleCase(sub(".*/","",gsub("-"," ",sub(".html","",url)))),"</a>") })
+    }})
     
     table_of_adventures$"Summary" = lapply(X = table_of_adventures$"Summary", FUN = function(x){if(is.na(x)){ "" } else{ markdown::markdownToHTML(text = x,fragment.only = TRUE) }})
     
-    list_of_adventures = datatable(table_of_adventures, selection = 'none', escape = FALSE, options = list(columnDefs = list(list(visible=FALSE, targets=c(4,6))),dom = 'tp', pageLength = 5), rownames = FALSE) %>% formatStyle('Summary Author',target = 'row', color = styleEqual(levels = unique(player_names$player_name), values = spectrum))
+    list_of_adventures = datatable(table_of_adventures, selection = 'none', escape = FALSE, options = list(columnDefs = list(list(visible=FALSE, targets=c(5))),dom = 'tp', pageLength = 5), rownames = FALSE) %>% formatStyle('Summary Author',target = 'row', color = styleEqual(levels = unique(player_names$player_name), values = spectrum))
     
     return(list_of_adventures)
   }, server = FALSE)
@@ -130,11 +132,15 @@ shinyServer(function(input, output, session) {
         fix_week_one = rbind(level_this_week,data.frame(Group.1,x))
         level_this_week_fixed = aggregate(fix_week_one$x,by=list(fix_week_one$Group.1), max)
         
+        #print(character_names$week_of_death >= w)
+        #print(character_names$final_adventuring_week >= w)
+        alpha = (0.5*(character_names$final_adventuring_week >= w)) + 0.5*(character_names$week_of_death >= w)
+
         # set names and attributes
         set.vertex.attribute(x = network_w, attrname = "vertex.names",value = character_names$name)
         set.vertex.attribute(x = network_w, attrname = "vertex.player_name",value = player_names$player_name)
         set.vertex.attribute(x = network_w, attrname = "vertex.level",value = level_this_week_fixed$x)
-        set.vertex.attribute(x = network_w, attrname = "vertex.alpha",value = pmin(character_names$final_adventuring_week/w,1))
+        set.vertex.attribute(x = network_w, attrname = "vertex.alpha",value = alpha)
         set.edge.attribute(x = network_w, attrname = "num_adventures", value = df$num_adv)
         set.edge.attribute(x = network_w, attrname = "weight", value = df$num_adv)
         set.edge.attribute(x = network_w, attrname = "percentage_adventures", value = df$num_adv/w)
@@ -149,10 +155,10 @@ shinyServer(function(input, output, session) {
                                edge.TEA.names = c("num_adventures", "adventure_list"), 
                                vertex.pid = "vertex.names")
       
-      
       compute.animation(net.dyn, animation.mode = "kamadakawai", slice.par = list(start = 0, end = max_week, interval = 1, aggregate.dur = 1, rule = "any"))
       network_diagram = render.d3movie(net.dyn,usearrows = F, 
-                                       label = function(slice) { get.vertex.attribute(slice, "vertex.names") }, 
+                                       label = function(slice) { get.vertex.attribute(slice, "vertex.names") },
+                                       vertex.label.degree = -pi/2,
                                        displaylabels = T, bg = "#ffffff", vertex.border = "#333333",
                                        label.col = "black", 
                                        vertex.col = function(slice){
@@ -160,22 +166,17 @@ shinyServer(function(input, output, session) {
                                          unname(mapply(spectrum_extended,FUN = adjustcolor,alpha.f = get.vertex.attribute(slice,"vertex.alpha")))
                                        }, 
                                        edge.lwd = function(slice){
-                                         if(typeof(get.edge.attribute(slice, "num_adventures")) == "double"){
-                                           get.edge.attribute(slice, "num_adventures")^(1/3)
-                                         }else{
-                                           1
-                                         }
+                                         if(typeof(get.edge.attribute(slice, "num_adventures")) == "double"){ get.edge.attribute(slice, "num_adventures")^(1/3) }else{ 1 }
                                        },
                                        edge.curved=.4, 
                                        edge.col = function(slice) { v = (1 - get.edge.attribute(slice, "percentage_adventures")); rgb(v, v, v) }, 
                                        vertex.sides = function(slice){
-                                         # One of “none”, “circle”, “square”, “csquare”, “rectangle” “crectangle”, “vrectangle”, “pie”, “raster”, or “sphere”
                                          pmax(3,get.vertex.attribute(slice, "vertex.level"))
                                        },
                                        vertex.cex = function(slice) { get.vertex.attribute(slice, "vertex.level")^(2/3)},
                                        vertex.tooltip = function(slice) { paste("<b>", get.vertex.attribute(slice, "vertex.names"), get.vertex.attribute(slice, "vertex.level"),"</b>")}, 
                                        edge.tooltip = function(slice) { paste("<b>",get.edge.attribute(slice, "num_adventures")," Adventures:</b>", get.edge.attribute(slice, "adventure_list")) },
-                                       render.par = list(tween.frames = 10, show.time = T), 
+                                       #render.par = list(tween.frames = 10, show.time = T), 
                                        plot.par = list(mar = c(0, 0, 0, 0)), 
                                        output.mode = 'htmlWidget')
       
@@ -245,7 +246,7 @@ shinyServer(function(input, output, session) {
     load(MAGIC_LST)
     magic_item_sel <- input$list_of_magic_items_rows_selected
     
-    if(length(magic_item_sel)){
+    if(!is.null(magic_item_sel)){
       item = filteredTable_selected()
       if(item$requires_attunement){ req = "_Requires Attunement_" }else{ req = "" }
       if(!is.na(item$description)){ desc = item$description }else{ desc = "" }
