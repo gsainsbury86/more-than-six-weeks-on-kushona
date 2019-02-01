@@ -1,10 +1,10 @@
 SELECT
-   magic_item.name AS "item",
-   adventure.name AS "found",
+   magic_item.name AS "Item",
+   adventure.name AS "Found in Adventure",
    requires_attunement,
    description,
    rules,
-   CHARACTER.name AS "Character",
+   CHARACTER.name AS "Owned By",
    CHARACTER.player_name 
 FROM
    magic_item 
