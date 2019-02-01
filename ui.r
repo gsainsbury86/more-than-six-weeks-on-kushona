@@ -18,46 +18,33 @@ library(colorspace)
 library(readr)
 
 # Define UI for application that draws a histogram
-shinyUI(fixedPage(
+shinyUI(fluidPage(
   # Application title
+  
   includeCSS("www/css/six-weeks-style.css"),
+  includeCSS("https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.6/dist/jquery.fancybox.min.css"),
+  
   tags$head(
-    tags$script(src = "js/six-weeks-js.js")
-    #tags$script(src = "js/showdown.js"),
-    #tags$script(
-    #  'Shiny.addCustomMessageHandler("jsCode", function(message) { console.log(message.value); eval(message.value); });'
-    #)
+    tags$script(src = "js/six-weeks-js.js"),
+    tags$script(src = "https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.6/dist/jquery.fancybox.min.js")
   ),
   titlePanel("Kushona"),
   hr(),
   
-  #div(htmlOutput("character_count")),
-  fixedRow(
-    column(6, dataTableOutput('player_experience')),
-    column(
-      6,
-      tags$style(HTML(".tooltip {opacity: 1}")),
-      ndtv:::ndtvAnimationWidgetOutput("netPlot")
-    )
+  sidebarLayout(sidebarPanel(
+    tags$a(`data-fancybox`="gallery",href='img/Brightwood.png',img(src='img/Brightwood small.png')),
+    tags$a(`data-fancybox`="gallery",href='img/Kushona Hex.png',img(src='img/Kushona Hex small.png')),
+    tags$a(`data-fancybox`="gallery",href='img/Kroop\'s Landing.png',img(src='img/Kroop\'s Landing small.png'))
   ),
-  hr(),
-  fixedRow(
-    #htmlOutput("recount_word_count"),
-    column(12, dataTableOutput('list_of_adventures'))
-    #column(6, div(id = "recount_container", htmlOutput("recount_frame")))
-  ),
-  hr(),
-  fixedRow(
-    #htmlOutput("session_count"),
-    column(6,dataTableOutput('list_of_magic_items')),
-    column(6,htmlOutput("magic_item_frame"))
-  ),
-  hr(),
-  fixedRow(
-    #htmlOutput("session_count"),
-    column(12,HTML('<div id = "plotly_spacer" style="height: 50px;"></div>'),
-           plotlyOutput("plotlyBarPlot", width = "auto"))#,
-    #column(6)
-  )
   
+  mainPanel(
+    tabsetPanel(
+      tabPanel("Player Experience", dataTableOutput('player_experience')),
+      tabPanel("Adventures", dataTableOutput('list_of_adventures')),
+      tabPanel("Interactions Graph", ndtv:::ndtvAnimationWidgetOutput("netPlot")),
+      tabPanel("Magic Items",fixedRow(column(6,dataTableOutput('list_of_magic_items')),column(6,htmlOutput("magic_item_frame")))),
+      tabPanel("DMs", HTML('<div id = "plotly_spacer" style="height: 50px;"></div>'), plotlyOutput("plotlyBarPlot", width = "auto"))
+    )
+  )
+  )
 ))
